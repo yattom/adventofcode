@@ -224,31 +224,62 @@ class TestValleyHistory:
         assert len(sut.history) < (10 - 2) * (7 - 2) + 1
 
 
+def shortest_path_with_eval(valley, start_time, start, goal):
+    def score(e):
+        step_count, p = e
+        return (abs(goal.x - p.x) + abs(goal.y - p.y)) * step_count
+    touched = set()
+    points_to_check = [(start_time, start)]
+    history = ValleyHistory(valley)
+    start_t = perf_t = time.perf_counter()
+    log_interval = 0
+    while points_to_check:
+        # print(points_to_check)
+        if log_interval % 1000 == 0:
+            print(f"{len(points_to_check)=} elapsed={time.perf_counter() - start_t:.2f} interval={time.perf_counter() - perf_t:.2f}")
+            print(points_to_check[:10])
+            perf_t = time.perf_counter()
+        log_interval += 1
+        step_count, point = points_to_check.pop(0)
+        current_valley = history[step_count + 1]
+        if point == goal:
+            return step_count
+        for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
+            p = point + v
+            if p.y < 0 or p.y >= valley.height or not current_valley.is_clear(p):
+                continue
+            if (step_count + 1, p) in touched:
+                continue
+            points_to_check.append((step_count + 1, p))
+            points_to_check.sort(key=score)
+            touched.add((step_count + 1, p))
+
 
 def shortest_path(valley, start_time, start, goal):
-    points_to_check = set([start])
+    touched = set()
+    points_to_check = [(start_time, start)]
     history = ValleyHistory(valley)
-    step_count = start_time
-    start_time = perf_time = time.perf_counter()
-    while True:
+    start_t = perf_t = time.perf_counter()
+    log_interval = 0
+    while points_to_check:
         # print(points_to_check)
-        print(f"{step_count=} {len(points_to_check)=} elapsed={time.perf_counter() - start_time:.2f} interval={time.perf_counter() - perf_time:.2f}")
-        perf_time = time.perf_counter()
-        next_steps = set()
+        if log_interval % 1000 == 0:
+            print(f"{len(points_to_check)=} elapsed={time.perf_counter() - start_t:.2f} interval={time.perf_counter() - perf_t:.2f}")
+            print(points_to_check[:10])
+            perf_t = time.perf_counter()
+        log_interval += 1
+        step_count, point = points_to_check.pop(0)
         current_valley = history[step_count + 1]
-        for point in points_to_check:
-            if point == goal:
-                return step_count
-            for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
-                p = point + v
-                if p.y < 0 or p.y >= valley.height or not current_valley.is_clear(p):
-                    continue
-                next_steps.add(p)
-        if len(next_steps) == 0:
-            print("total dead end")
-            return -1
-        step_count += 1
-        points_to_check = next_steps
+        if point == goal:
+            return step_count
+        for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
+            p = point + v
+            if p.y < 0 or p.y >= valley.height or not current_valley.is_clear(p):
+                continue
+            if (step_count + 1, p) in touched:
+                continue
+            points_to_check.append((step_count + 1, p))
+            touched.add((step_count + 1, p))
 
 
 def test_shortest_path():
@@ -263,6 +294,18 @@ def test_shortest_path():
     valley = Valley.parse(puzzle_input)
     assert shortest_path(valley, 0, valley.start, valley.goal) == 18
 
+
+def test_shortest_path_with_eval():
+    puzzle_input = [
+        "#.######",
+        "#>>.<^<#",
+        "#.<..<<#",
+        "#>v.><>#",
+        "#<^v^^>#",
+        "######.#",
+    ]
+    valley = Valley.parse(puzzle_input)
+    assert shortest_path_with_eval(valley, 0, valley.start, valley.goal) == 18
 
 def test_solve2():
     puzzle_input = [
