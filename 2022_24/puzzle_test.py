@@ -254,36 +254,6 @@ def shortest_path_with_eval(valley, start_time, start, goal):
             points_to_check.sort(key=score)
             touched.add((step_count + 1, p))
 
-def shortest_path_with_eval(valley, start_time, start, goal):
-    def score(e):
-        step_count, p = e
-        return (abs(goal.x - p.x) + abs(goal.y - p.y)) * step_count
-    touched = set()
-    points_to_check = [(start_time, start)]
-    history = ValleyHistory(valley)
-    start_t = perf_t = time.perf_counter()
-    log_interval = 0
-    while points_to_check:
-        # print(points_to_check)
-        if log_interval % 1000 == 0:
-            print(f"{len(points_to_check)=} elapsed={time.perf_counter() - start_t:.2f} interval={time.perf_counter() - perf_t:.2f}")
-            print(points_to_check[:10])
-            perf_t = time.perf_counter()
-        log_interval += 1
-        step_count, point = points_to_check.pop(0)
-        current_valley = history[step_count + 1]
-        if point == goal:
-            return step_count
-        for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
-            p = point + v
-            if p.y < 0 or p.y >= valley.height or not current_valley.is_clear(p):
-                continue
-            if (step_count + 1, p) in touched:
-                continue
-            points_to_check.append((step_count + 1, p))
-            points_to_check.sort(key=score)
-            touched.add((step_count + 1, p))
-
 
 def shortest_path(valley, start_time, start, goal):
     touched = set()
