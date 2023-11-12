@@ -1,5 +1,6 @@
 import pytest
 from dataclasses import dataclass
+import time
 
 
 @dataclass
@@ -224,25 +225,23 @@ class TestValleyHistory:
 
 
 
-def shortest_path(valley):
-    points_to_check = set([valley.start])
+def shortest_path(valley, start_time, start, goal):
+    points_to_check = set([start])
     history = ValleyHistory(valley)
-    step_count = 0
-    checked = set()
+    step_count = start_time
+    start_time = perf_time = time.perf_counter()
     while True:
         # print(points_to_check)
-        print(f"{step_count=} {len(points_to_check)=}  {len(checked)=}")
+        print(f"{step_count=} {len(points_to_check)=} elapsed={time.perf_counter() - start_time:.2f} interval={time.perf_counter() - perf_time:.2f}")
+        perf_time = time.perf_counter()
         next_steps = set()
         current_valley = history[step_count + 1]
         for point in points_to_check:
-            if point == valley.goal:
+            if point == goal:
                 return step_count
-            # if (step_count % history.repeat, point) in checked:
-            #     continue
-            # checked.add((step_count % history.repeat, point))
             for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
                 p = point + v
-                if p.y < 0 or not current_valley.is_clear(p):
+                if p.y < 0 or p.y >= valley.height or not current_valley.is_clear(p):
                     continue
                 next_steps.add(p)
         if len(next_steps) == 0:
@@ -252,7 +251,7 @@ def shortest_path(valley):
         points_to_check = next_steps
 
 
-def test_some_winds():
+def test_shortest_path():
     puzzle_input = [
         "#.######",
         "#>>.<^<#",
@@ -262,16 +261,32 @@ def test_some_winds():
         "######.#",
     ]
     valley = Valley.parse(puzzle_input)
-    assert shortest_path(valley) == 18
+    assert shortest_path(valley, 0, valley.start, valley.goal) == 18
+
+
+def test_solve2():
+    puzzle_input = [
+        "#.######",
+        "#>>.<^<#",
+        "#.<..<<#",
+        "#>v.><>#",
+        "#<^v^^>#",
+        "######.#",
+    ]
+    assert solve2(puzzle_input) == 54
 
 
 def solve(puzzle_input):
     valley = Valley.parse(puzzle_input)
-    return shortest_path(valley)
+    return shortest_path(valley, 0, valley.start, valley.goal)
 
 
 def solve2(puzzle_input):
-    pass
+    valley = Valley.parse(puzzle_input)
+    to_goal = shortest_path(valley, 0, valley.start, valley.goal)
+    back_to_start = shortest_path(valley, to_goal, valley.goal, valley.start)
+    to_goal_again = shortest_path(valley, back_to_start, valley.start, valley.goal)
+    return to_goal_again
     
 
 def 問題1(puzzle_input: list[str]):
