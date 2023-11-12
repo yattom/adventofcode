@@ -25,6 +25,7 @@ RIGHT = Vector(1, 0)
 LEFT = Vector(-1, 0)
 UP = Vector(0, -1)
 DOWN = Vector(0, 1)
+WAIT = Vector(0, 0)
 WIND_CHARS = {
     '>': RIGHT,
     '<': LEFT,
@@ -222,8 +223,51 @@ class TestValleyHistory:
         assert len(sut.history) < (10 - 2) * (7 - 2) + 1
 
 
+
+def shortest_path(valley):
+    points_to_check = set([valley.start])
+    history = ValleyHistory(valley)
+    step_count = 0
+    checked = set()
+    while True:
+        # print(points_to_check)
+        print(f"{step_count=} {len(points_to_check)=}  {len(checked)=}")
+        next_steps = set()
+        current_valley = history[step_count + 1]
+        for point in points_to_check:
+            if point == valley.goal:
+                return step_count
+            # if (step_count % history.repeat, point) in checked:
+            #     continue
+            # checked.add((step_count % history.repeat, point))
+            for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
+                p = point + v
+                if p.y < 0 or not current_valley.is_clear(p):
+                    continue
+                next_steps.add(p)
+        if len(next_steps) == 0:
+            print("total dead end")
+            return -1
+        step_count += 1
+        points_to_check = next_steps
+
+
+def test_some_winds():
+    puzzle_input = [
+        "#.######",
+        "#>>.<^<#",
+        "#.<..<<#",
+        "#>v.><>#",
+        "#<^v^^>#",
+        "######.#",
+    ]
+    valley = Valley.parse(puzzle_input)
+    assert shortest_path(valley) == 18
+
+
 def solve(puzzle_input):
-    pass
+    valley = Valley.parse(puzzle_input)
+    return shortest_path(valley)
 
 
 def solve2(puzzle_input):
