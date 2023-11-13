@@ -230,7 +230,7 @@ class TestValleyHistory:
         assert len(sut.history) < (10 - 2) * (7 - 2) + 1
 
 
-def shortest_path_with_eval(valley, start_time, start, goal):
+def shortest_path_with_eval(valley, history, start_time, start, goal):
     class PointToCheck:
         def __init__(self, step_count, point):
             self.step_count = step_count
@@ -248,13 +248,12 @@ def shortest_path_with_eval(valley, start_time, start, goal):
 
     touched = set()
     points_to_check = [PointToCheck(start_time, start)]
-    history = ValleyHistory(valley)
     start_t = perf_t = time.perf_counter()
     log_interval = 0
     while points_to_check:
         # print(points_to_check)
         if log_interval % 1000 == 0:
-            print(f"{len(points_to_check)=} elapsed={time.perf_counter() - start_t:.2f} interval={time.perf_counter() - perf_t:.2f}")
+            # print(f"{len(points_to_check)=} elapsed={time.perf_counter() - start_t:.2f} interval={time.perf_counter() - perf_t:.2f}")
             # print(points_to_check[:10])
             perf_t = time.perf_counter()
         log_interval += 1
@@ -278,10 +277,9 @@ def shortest_path_with_eval(valley, start_time, start, goal):
             touched.add((ptc.step_count + 1, p))
 
 
-def shortest_path(valley, start_time, start, goal):
+def shortest_path(valley, history, start_time, start, goal):
     touched = set()
     points_to_check = [(start_time, start)]
-    history = ValleyHistory(valley)
     start_t = perf_t = time.perf_counter()
     log_interval = 0
     while points_to_check:
@@ -315,7 +313,7 @@ def test_shortest_path():
         "######.#",
     ]
     valley = Valley.parse(puzzle_input)
-    assert shortest_path(valley, 0, valley.start, valley.goal) == 18
+    assert shortest_path(valley, ValleyHistory(valley), 0, valley.start, valley.goal) == 18
 
 
 def test_shortest_path_with_eval():
@@ -328,7 +326,7 @@ def test_shortest_path_with_eval():
         "######.#",
     ]
     valley = Valley.parse(puzzle_input)
-    assert shortest_path_with_eval(valley, 0, valley.start, valley.goal) == 18
+    assert shortest_path_with_eval(valley, ValleyHistory(valley), 0, valley.start, valley.goal) == 18
 
 def test_solve2():
     puzzle_input = [
@@ -339,32 +337,38 @@ def test_solve2():
         "#<^v^^>#",
         "######.#",
     ]
-    assert solve2(puzzle_input) == 54
+    assert solve2(Puzzle(puzzle_input)) == 54
 
 
-def solve(puzzle_input):
-    valley = Valley.parse(puzzle_input)
-    return shortest_path_with_eval(valley, 0, valley.start, valley.goal)
+class Puzzle:
+    def __init__(self, puzzle_input):
+        self.puzzle_input = puzzle_input
+        self.valley = Valley.parse(self.puzzle_input)
+        self.history = ValleyHistory(self.valley)
 
 
-def solve2(puzzle_input):
-    valley = Valley.parse(puzzle_input)
-    to_goal = shortest_path_with_eval(valley, 0, valley.start, valley.goal)
-    back_to_start = shortest_path_with_eval(valley, to_goal, valley.goal, valley.start)
-    to_goal_again = shortest_path_with_eval(valley, back_to_start, valley.start, valley.goal)
+def solve(puzzle):
+    return shortest_path_with_eval(puzzle.valley, puzzle.history, 0, puzzle.valley.start, puzzle.valley.goal)
+
+
+def solve2(puzzle):
+    to_goal = shortest_path_with_eval(puzzle.valley, puzzle.history, 0, puzzle.valley.start, puzzle.valley.goal)
+    back_to_start = shortest_path_with_eval(puzzle.valley, puzzle.history, to_goal, puzzle.valley.goal, puzzle.valley.start)
+    to_goal_again = shortest_path_with_eval(puzzle.valley, puzzle.history, back_to_start, puzzle.valley.start, puzzle.valley.goal)
     return to_goal_again
 
 
-def 問題1(puzzle_input: list[str]):
-    print(solve(puzzle_input))
+def 問題1(puzzle: Puzzle):
+    print(solve(puzzle))
 
 
-def 問題2(puzzle_input: list[str]):
-    pass  # print(solve2(puzzle_input))
+def 問題2(puzzle: Puzzle):
+    print(solve2(puzzle))
 
 
 if __name__ == "__main__":
     with open("puzzle_input.txt") as f:
         puzzle_input = f.read().splitlines()
-    問題1(puzzle_input)
-    問題2(puzzle_input)
+    puzzle = Puzzle(puzzle_input)
+    問題1(puzzle)
+    問題2(puzzle)
