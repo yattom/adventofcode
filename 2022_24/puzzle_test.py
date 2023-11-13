@@ -58,7 +58,7 @@ class Valley:
                     if c in WIND_CHARS:
                         valley.winds.append(Wind(Point(x, y), WIND_CHARS[c]))
                     valley.map[Point(x=x, y=y)] = '.'
- 
+
         valley.start = Point(x=1, y=0)
         valley.goal = Point(x=valley.width - 2, y=valley.height - 1)
         return valley
@@ -72,7 +72,7 @@ class Valley:
 
     def is_wall(self, point):
         return self.map[point] == '#'
-    
+
     def next_wind(self, wind):
         new_point = wind.point + wind.vector
         if self.is_wall(new_point):
@@ -100,7 +100,7 @@ class ValleyHistory:
         self.init = init
         self.history = [init]
         self.repeat = (init.width - 2) * (init.height - 2)
-    
+
     def __getitem__(self, idx):
         if self.repeat > 0:
             idx = idx % self.repeat
@@ -330,7 +330,7 @@ def solve2(puzzle_input):
     back_to_start = shortest_path_with_eval(valley, to_goal, valley.goal, valley.start)
     to_goal_again = shortest_path_with_eval(valley, back_to_start, valley.start, valley.goal)
     return to_goal_again
-    
+
 
 def 問題1(puzzle_input: list[str]):
     print(solve(puzzle_input))
