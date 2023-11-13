@@ -57,18 +57,16 @@ class Valley:
                 else:
                     if c in WIND_CHARS:
                         valley.winds.append(Wind(Point(x, y), WIND_CHARS[c]))
-                    valley.map[Point(x=x, y=y)] = '.'
+                        valley.map[Point(x=x, y=y)] = 'w'
+                    else:
+                        valley.map[Point(x=x, y=y)] = '.'
 
         valley.start = Point(x=1, y=0)
         valley.goal = Point(x=valley.width - 2, y=valley.height - 1)
         return valley
 
     def is_clear(self, point):
-        if self.map[point] == '#':
-            return False
-        if point in [w.point for w in self.winds]:
-            return False
-        return True
+        return self.map[point] == '.'
 
     def is_wall(self, point):
         return self.map[point] == '#'
@@ -90,8 +88,16 @@ class Valley:
         valley = Valley()
         valley.width = self.width
         valley.height = self.height
-        valley.map = self.map
         valley.winds = [self.next_wind(w) for w in self.winds]
+        valley.map = {}
+        for p, c in self.map.items():
+            if c == '#':
+                valley.map[p] = c
+            else:
+                valley.map[p] = '.'
+        for w in valley.winds:
+            valley.map[w.point] = 'w'
+
         return valley
 
 
@@ -337,7 +343,7 @@ def 問題1(puzzle_input: list[str]):
 
 
 def 問題2(puzzle_input: list[str]):
-    print(solve2(puzzle_input))
+    pass  # print(solve2(puzzle_input))
 
 
 if __name__ == "__main__":
