@@ -231,11 +231,23 @@ class TestValleyHistory:
 
 
 def shortest_path_with_eval(valley, start_time, start, goal):
-    def score(e):
-        step_count, p = e
-        return (abs(goal.x - p.x) + abs(goal.y - p.y)) + step_count
+    class PointToCheck:
+        def __init__(self, step_count, point):
+            self.step_count = step_count
+            self.point = point
+            self.score = self.calc_score()
+
+        def __lt__(self, other):
+            return self.score < other.score
+
+        def __eq__(self, other):
+            return self.step_count == other.step_count and self.point == other.point
+
+        def calc_score(self):
+            return (abs(goal.x - self.point.x) + abs(goal.y - self.point.y)) + self.step_count
+
     touched = set()
-    points_to_check = [(score((start_time, start)), start_time, start)]
+    points_to_check = [PointToCheck(start_time, start)]
     history = ValleyHistory(valley)
     start_t = perf_t = time.perf_counter()
     log_interval = 0
@@ -243,22 +255,27 @@ def shortest_path_with_eval(valley, start_time, start, goal):
         # print(points_to_check)
         if log_interval % 1000 == 0:
             print(f"{len(points_to_check)=} elapsed={time.perf_counter() - start_t:.2f} interval={time.perf_counter() - perf_t:.2f}")
-            print(points_to_check[:10])
+            # print(points_to_check[:10])
             perf_t = time.perf_counter()
         log_interval += 1
-        _, step_count, point = points_to_check.pop(0)
-        current_valley = history[step_count + 1]
-        if point == goal:
-            return step_count
+        min_score = 999999
+        for i, ptc in enumerate(points_to_check):
+            if ptc.score < min_score:
+                min_idx = i
+                min_score = ptc.score
+        ptc = points_to_check.pop(min_idx)
+        current_valley = history[ptc.step_count + 1]
+        if ptc.point == goal:
+            return ptc.step_count
         for v in [LEFT, RIGHT, UP, DOWN, WAIT]:
-            p = point + v
+            p = ptc.point + v
             if p.y < 0 or p.y >= valley.height or not current_valley.is_clear(p):
                 continue
-            if (step_count + 1, p) in touched:
+            if (ptc.step_count + 1, p) in touched:
                 continue
-            points_to_check.append((score((step_count + 1, p)), step_count + 1, p))
-            points_to_check.sort(key=lambda e: e[0])
-            touched.add((step_count + 1, p))
+            points_to_check.append(PointToCheck(ptc.step_count + 1, p))
+            # points_to_check.sort()
+            touched.add((ptc.step_count + 1, p))
 
 
 def shortest_path(valley, start_time, start, goal):
