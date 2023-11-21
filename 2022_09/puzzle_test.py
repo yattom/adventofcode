@@ -12,6 +12,34 @@ def test_solve():
     assert solve(puzzle_input) == 13
 
 
+def test_solve2():
+    puzzle_input = [
+        "R 4",
+        "U 4",
+        "L 3",
+        "D 1",
+        "R 4",
+        "D 1",
+        "L 5",
+        "R 2",
+    ]
+    assert solve2(puzzle_input) == 1
+
+
+def test_solve2_2():
+    puzzle_input = [
+        "R 5",
+        "U 8",
+        "L 8",
+        "D 3",
+        "R 17",
+        "D 10",
+        "L 25",
+        "U 20",
+    ]
+    assert solve2(puzzle_input) == 36
+
+
 def add(a, b):
     return (a[0] + b[0], a[1] + b[1])
 
@@ -28,10 +56,9 @@ def sign(a):
     return 0
 
 
-
-def solve(puzzle_input):
-    head = tail = (0, 0)
-    visited = set([tail])
+def solve(puzzle_input, knots=2):
+    tails = [(0, 0)] * knots
+    visited = {tails[-1]}
     for direction, steps in [l.split(" ") for l in puzzle_input]:
         match direction:
             case "R":
@@ -45,16 +72,17 @@ def solve(puzzle_input):
             case _:
                 raise ValueError(f"{direction=}, {steps=}")
         for i in range(int(steps)):
-            head = add(head, vector)
-            if distance(head, tail) > 1:
-                tail = (tail[0] + sign(head[0] - tail[0]), tail[1] + sign(head[1] - tail[1]))
-            visited.add(tail)
+            tails[0] = add(tails[0], vector)
+            for j in range(1, len(tails)):
+                if distance(tails[j - 1], tails[j]) > 1:
+                    tails[j] = (tails[j][0] + sign(tails[j - 1][0] - tails[j][0]), tails[j][1] + sign(tails[j - 1][1] - tails[j][1]))
+            visited.add(tails[-1])
     return len(visited)
 
 
 def solve2(puzzle_input):
-    pass
-    
+    return solve(puzzle_input, 10)
+
 
 def 問題1(puzzle_input: list[str]):
     print(solve(puzzle_input))
