@@ -77,6 +77,17 @@ def parse(puzzle_input: list[str]):
     return board, instructions
 
 
+class Cube:
+    def __init__(self, lines):
+        self.lines = lines
+        self.height = len(lines)
+        self.width = max([len(l) for l in lines])
+
+    @staticmethod
+    def topmost_length(lines: list[str]):
+        re.match(" *([^ ]+) ")
+
+
 def score(counter: Counter):
     return counter.loc[0] * 1000 + counter.loc[1] * 4 + Counter.FACING.index(counter.facing)
 

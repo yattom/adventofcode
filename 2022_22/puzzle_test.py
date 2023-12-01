@@ -101,6 +101,42 @@ def test_score():
     assert score(counter) == 6032
 
 
+def test_cube_map():
+    puzzle_input = [
+        "   ...",
+        "   .#.",
+        "   ...",
+        "   ......",
+        "   .#..#.",
+        "   ......",
+        "   ...",
+        "   .#.",
+        "   ...",
+        "......",
+        ".#..#.",
+        "......",
+    ]
+    sut = Cube(puzzle_input)
+    assert sut.surface_at((1, 4)).step_out_facing((0, 1)) == sut.surfac_at((5, 8))
+
+
+def test_topmost_length():
+    puzzle_input = [
+        "   ...",
+        "   .#.",
+        "   ...",
+        "   ......",
+        "   .#..#.",
+        "   ......",
+        "   ...",
+        "   .#.",
+        "   ...",
+        "......",
+        ".#..#.",
+        "......",
+    ]
+    assert Cube.topmost_length(puzzle_input) == 3
+
 def test_solve(sample_input):
     assert solve(sample_input) == 6032
 
