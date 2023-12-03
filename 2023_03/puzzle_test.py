@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import re
 
 
@@ -32,7 +33,34 @@ def test_solve2():
     assert solve2(puzzle_input) == 467835
 
 
-def solve(puzzle_input):
+@dataclass(unsafe_hash=True, frozen=True)
+class Rect:
+    left: int
+    top: int
+    width: int
+    height: int
+
+    @property
+    def right(self):
+        return self.left + self.width - 1
+
+    @property
+    def bottom(self):
+        return self.top + self.height - 1
+
+    def is_over_wrap(self, other):
+        return not (self.right < other.left or other.right < self.left or
+                    self.bottom < other.top or other.bottom < self.top)
+
+    def margin(self, width):
+        return Rect(self.left - width, self.top - width,
+                    self.width + width * 2, self.height + width * 2)
+
+    def is_inside(self, loc):
+        return self.left <= loc[0] <= self.right and self.top <= loc[1] <= self.bottom
+
+
+def parse(puzzle_input):
     numbers = []
     symbols = {}
     for y, l in enumerate(puzzle_input):
@@ -40,52 +68,39 @@ def solve(puzzle_input):
         while x < len(l):
             if l[x] in '0123456789':
                 n = re.match(r"(\d+).*", l[x:]).group(1)
-                numbers.append((int(n), x, y, len(n)))
+                numbers.append((int(n), Rect(x, y, len(n), 1)))
                 x += len(n) - 1
             elif l[x] != '.':
-                symbols[(x, y)] = l[x]
+                symbols[Rect(x, y, 1, 1)] = l[x]
             x += 1
+    return numbers, symbols
 
-    tally = 0
-    def is_part_no(x, y, l):
-        for xx in range(x - 1, x + l + 1):
-            for yy in range(y - 1, y + 2):
-                if (xx, yy) in symbols:
-                    return True
+
+def solve(puzzle_input):
+    numbers, symbols = parse(puzzle_input)
+
+    def is_part_no(rect):
+        for sr in symbols.keys():
+            if rect.is_over_wrap(sr):
+                return True
         return False
 
-    for n, x, y, l in numbers:
-        if is_part_no(x, y, l):
-            tally += n
+    tally = sum([n for n, r in numbers if is_part_no(r.margin(1))])
     return tally
 
 
 def solve2(puzzle_input):
-    numbers = []
-    symbols = {}
-    for y, l in enumerate(puzzle_input):
-        x = 0
-        while x < len(l):
-            if l[x] in '0123456789':
-                n = re.match(r"(\d+).*", l[x:]).group(1)
-                numbers.append((int(n), x, y, len(n)))
-                x += len(n) - 1
-            elif l[x] != '.':
-                symbols[(x, y)] = l[x]
-            x += 1
+    numbers, symbols = parse(puzzle_input)
 
     tally = 0
-    for loc, symbol in symbols.items():
+    for gear_rect, symbol in symbols.items():
         if symbol != '*':
             continue
-        gear_x, gear_y = loc
-        gear_numbers = []
-        for n, x, y, l in numbers:
-            if x - 1 <= gear_x <= x + l and y - 1 <= gear_y <= y + 1:
-                gear_numbers.append(n)
+        gear_margin = gear_rect.margin(1)
+        gear_numbers = [n for n, r in numbers if gear_margin.is_over_wrap(r)]
         if len(gear_numbers) != 2:
             continue
-        print(gear_numbers)
+        # print(gear_numbers)
         tally += gear_numbers[0] * gear_numbers[1]
     return tally
 
