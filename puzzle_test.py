@@ -1,3 +1,10 @@
+def test_solve():
+    puzzle_input = [
+
+    ]
+    assert solve(puzzle_input) == 0
+
+
 def solve(puzzle_input):
     pass
 
