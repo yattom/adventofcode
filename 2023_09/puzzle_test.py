@@ -42,7 +42,6 @@ def solve(puzzle_input):
     return tally
 
 
-
 def solve2(puzzle_input):
     tally = 0
     for l in puzzle_input:
