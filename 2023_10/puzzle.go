@@ -1,9 +1,10 @@
 package main
+
 import (
-    "bufio"
-    "fmt"
-    "os"
-    "strings"
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
 )
 
 type Coordinate struct {
@@ -45,12 +46,20 @@ var pipeTypes = map[int32][]NeighborType{
 	'.': []NeighborType{},
 }
 
-func Parse(puzzleInput []string) (start Pipe, area map[Coordinate]Pipe) {
+func Parse(puzzleInput []string) (start Pipe, area map[Coordinate]Pipe, maxX int, maxY int) {
 	area = make(map[Coordinate]Pipe)
+	maxX = 0
+	maxY = 0
 	// find the start pipe
 	// loop through puzzle_input
 	for y, s := range puzzleInput {
+		if y > maxY {
+			maxY = y
+		}
 		for x, c := range s {
+			if y > maxX {
+				maxX = y
+			}
 			if c == '.' {
 				continue
 			}
@@ -82,11 +91,11 @@ func Parse(puzzleInput []string) (start Pipe, area map[Coordinate]Pipe) {
 }
 
 type Head struct {
-	Here Pipe
+	Here    Pipe
 	Visited map[Coordinate]bool
 }
 
-func Farthest(start Pipe, pipes map[Coordinate]Pipe) int {
+func Farthest(start Pipe, pipes map[Coordinate]Pipe) (int, map[Coordinate]bool) {
 	head1 := Head{pipes[start.Connection[0]], map[Coordinate]bool{start.Coordinate: true}}
 	head2 := Head{pipes[start.Connection[1]], map[Coordinate]bool{start.Coordinate: true}}
 	step := 1
@@ -96,10 +105,16 @@ func Farthest(start Pipe, pipes map[Coordinate]Pipe) int {
 		step += 1
 
 		if head1.Here.Coordinate == head2.Here.Coordinate {
-			return step
+			loop := map[Coordinate]bool{head1.Here.Coordinate: true}
+			for k, v := range head1.Visited {
+				loop[k] = v
+			}
+			for k, v := range head2.Visited {
+				loop[k] = v
+			}
+			return step, loop
 		}
 	}
-	return -1
 }
 
 func MoveHead(head Head, pipes map[Coordinate]Pipe) (next Pipe) {
@@ -112,29 +127,58 @@ func MoveHead(head Head, pipes map[Coordinate]Pipe) (next Pipe) {
 	return
 }
 
+func PaintOutside(loop map[Coordinate]bool, maxX int, maxY int) (outside map[Coordinate]bool) {
+	outside = map[Coordinate]bool{}
+	toVisit := []Coordinate{{X: 0, Y: 0}}
+
+	for {
+		if len(toVisit) == 0 {
+			break
+		}
+		here := toVisit[0]
+		toVisit = toVisit[1:]
+		if outside[here] {
+			continue
+		}
+		outside[here] = true
+		for _, n := range []NeighborType{NorthOf, SouthOf, EastOf, WestOf} {
+			neighbor := n(here)
+			// if neighbor is outside the puzzle, skip
+			// make 1 width margin outside the actual area
+			if neighbor.X < -1 || neighbor.X > maxX+1 || neighbor.Y < -1 || neighbor.Y > maxY+1 {
+				continue
+			}
+
+			if !loop[neighbor] && !outside[neighbor] {
+				toVisit = append(toVisit, neighbor)
+			}
+		}
+	}
+	return
+}
 
 func main() {
-    // ファイルを開く
-    file, err := os.Open("puzzle_input.txt")
-    if err != nil {
-        panic(err)
-    }
-    defer file.Close()
+	// ファイルを開く
+	file, err := os.Open("puzzle_input.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 
-    var lines []string
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        line := scanner.Text()           // 1行読み込む
-        line = strings.TrimSpace(line)   // 改行を取り除く
-        lines = append(lines, line)      // スライスに追加する
-    }
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()         // 1行読み込む
+		line = strings.TrimSpace(line) // 改行を取り除く
+		lines = append(lines, line)    // スライスに追加する
+	}
 
-    if err := scanner.Err(); err != nil {
-        panic(err)
-    }
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
 
-	start, pipes := Parse(lines)
-	farthest := Farthest(start, pipes)
+	start, pipes, _, _ := Parse(lines)
+	farthest, _ := Farthest(start, pipes)
 
 	fmt.Println(farthest)
 }
