@@ -65,7 +65,6 @@ def puzzle2(lines: list[str]):
     return total
 
 
-
 def main():
     import sys
     if len(sys.argv) == 1:
