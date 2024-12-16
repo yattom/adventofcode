@@ -296,6 +296,7 @@ def puzzle1(lines: list[str]):
         if amphipods.key in visited:
             continue
         if is_everyone_in_their_rooms(amphipods, burrow):
+            print(f'solved with {energy=}')
             if energy < least_energy:
                 least_energy = energy
                 least_solution = amphipods
