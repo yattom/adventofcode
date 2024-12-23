@@ -1,3 +1,119 @@
+import re
+import time
+from copy import copy
+from dataclasses import dataclass
+from typing import TypeAlias
+
+
+class DebugPrinter:
+    def __init__(self, enabled=False, interval=0):
+        self.enabled = enabled
+        self.interval = interval
+        if self.interval:
+            self.start_ns = time.time_ns()
+            self.last_ns = self.start_ns
+
+    def print(self, *args, **kwargs):
+        if self.enabled:
+            print(*args, **kwargs)
+
+    def at_interval(self) -> bool:
+        if not self.enabled or not self.interval:
+            return False
+        if time.time_ns() - self.last_ns > self.interval:
+            self.last_ns += self.interval
+            return True
+
+    def elapsed(self):
+        return (time.time_ns() - self.start_ns) / (1000 * 1000 * 1000)
+
+
+GAP = 'X'
+DIRECTION = {
+    (0, -1): '^',
+    (0, 1): 'v',
+    (-1, 0): '<',
+    (1, 0): '>',
+}
+
+
+@dataclass(frozen=True)
+class Pos:
+    x: int
+    y: int
+
+
+class Grid:
+    NESW = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+
+    def __init__(self, grid: list[list[str]]):
+        self.grid = grid
+        self.height = len(grid)
+        self.width = len(grid[0])
+
+    def __getitem__(self, pos: Pos):
+        x, y = pos
+        if not self.is_point_on_grid(pos):
+            return ''
+        return self.grid[y][x]
+
+    def __setitem__(self, pos, value):
+        x, y = pos
+        self.grid[y][x] = value
+
+    def __copy__(self):
+        return Grid([row[:] for row in self.grid])
+
+    def is_point_on_grid(self, pos: Pos):
+        x, y = pos.x, pos.y
+        return 0 <= x < self.width and 0 <= y < self.height
+
+    def find(self, char: str) -> Pos | None:
+        for y, row in enumerate(self.grid):
+            for x, c in enumerate(row):
+                if c == char:
+                    return Pos(x, y)
+        return None
+
+    def find_all(self, char: str) -> list[Pos]:
+        for y, row in enumerate(self.grid):
+            for x, c in enumerate(row):
+                if c == char:
+                    yield Pos(x, y)
+
+    def dump(self, marks: dict[Pos, str] = None):
+        print('-' * 10)
+        for y, row in enumerate(self.grid):
+            s = ''
+            for x, c in enumerate(row):
+                if marks and Pos(x, y) in marks:
+                    s += marks[Pos(x, y)]
+                else:
+                    s += c
+            print(s)
+        print()
+
+    def __iter__(self):
+        for y, row in enumerate(self.grid):
+            for x, c in enumerate(row):
+                yield Pos(x, y), c
+
+
+def memoize(func):
+    memo = {}
+
+    def wrapper(*args, **kwargs):
+        key = (repr(args), repr(kwargs.items()))
+        if key not in memo:
+            memo[key] = func(*args, **kwargs)
+        return copy(memo[key])
+
+    return wrapper
+
+
+dp = DebugPrinter(enabled=False)
+
+
 def puzzle1(lines: list[str]):
     return 0
 
