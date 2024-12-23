@@ -42,7 +42,8 @@ class Pos:
     x: int
     y: int
 
-dp = DebugPrinter(enabled=True)
+
+dp = DebugPrinter(enabled=False)
 
 NUMPAD = {
     '7': Pos(0, 0),
@@ -77,36 +78,20 @@ def get_label(pad: Pad, pos):
     return None
 
 
-@dataclass
-class State:
-    robot_at_numpad: Pos = Pos(2, 3)
-    robot_at_keypad1: Pos = Pos(2, 0)
-    robot_at_keypad2: Pos = Pos(2, 0)
-    sequence_for_you: str = ''
+def memoize(func):
+    memo = {}
 
-    def __repr__(self):
-        return f'r{self.robot_at_numpad} 1{self.robot_at_keypad1} 2{self.robot_at_keypad2}'
+    def wrapper(*args, **kwargs):
+        key = (repr(args), repr(kwargs.items()))
+        if key not in memo:
+            memo[key] = func(*args, **kwargs)
+        return copy(memo[key])
 
-
-def shortest_sequence(start: Pos, target: Pos, target_pad: Pad) -> str:
-    # going zigzag will always cost more
-    # assume there's no preference for going vertical or horizontal first
-    # we need to avoid GAP
-    dx, dy = target.x - start.x, target.y - start.y
-    seq = ''
-    if dx == 0 or start.y == target_pad[GAP].y:
-        # vertical first
-        seq += go_vertical(dy)
-        seq += go_horizontal(dx)
-    else:
-        # horizontal first
-        seq += go_horizontal(dx)
-        seq += go_vertical(dy)
-    seq += 'A'
-    return seq
+    return wrapper
 
 
-def shortest_sequence_set(start: Pos, target: Pos, target_pad: Pad) -> set[str]:
+@memoize
+def get_sequence_set(start: Pos, target: Pos, target_pad: Pad) -> set[str]:
     # going zigzag will always cost more
     # we need to avoid GAP
     dx, dy = target.x - start.x, target.y - start.y
@@ -123,7 +108,7 @@ def shortest_sequence_set(start: Pos, target: Pos, target_pad: Pad) -> set[str]:
         pass
     else:
         # horizontal first
-        seq_set.add(go_vertical(dy) + go_horizontal(dx) )
+        seq_set.add(go_vertical(dy) + go_horizontal(dx))
     assert len(seq_set) == 1 or len(seq_set) == 2, f'wrong length {seq_set=}'
     return set([s + 'A' for s in seq_set])
 
@@ -142,64 +127,88 @@ def go_horizontal(dx):
         return '<' * (-dx)
 
 
-def calculate_sequence(robot: Pos, target: Pos, target_pad: Pad) -> str:
-    seq = shortest_sequence(start=robot, target=target, target_pad=target_pad)
-    return seq
+def shortest_sequence_set_for_robot_on_keypad1(robot_on_numpad: Pos, target: Pos) -> set[str]:
+    return get_sequence_set(start=robot_on_numpad, target=target, target_pad=NUMPAD)
 
 
-def calculate_sequence_for_robot_on_keypad1(state: State, target: Pos) -> str:
-    dp.print(f'{state=}')
-    seq_on_keypad1 = calculate_sequence(state.robot_at_numpad, target, NUMPAD)
-    state.robot_at_numpad = target
-    dp.print(f'key={get_label(NUMPAD, target)} {seq_on_keypad1=} {state=}')
-    return seq_on_keypad1
+def shortest_sequence_set_for_robot_on_keypad2(robot_on_keypad1: Pos, target: Pos) -> set[str]:
+    return get_sequence_set(start=robot_on_keypad1, target=target, target_pad=KEYPAD)
 
 
-def calculate_sequence_for_robot_on_keypad2(state: State, target: Pos) -> str:
-    dp.print(f'  {state=}')
-    seq_on_keypad2 = calculate_sequence(state.robot_at_keypad1, target, KEYPAD)
-    state.robot_at_keypad1 = target
-    dp.print(f'  key={get_label(KEYPAD, target)} {seq_on_keypad2=} {state=}')
-    return seq_on_keypad2
+@memoize
+def shortest_sequence_set_for_you(robot_on_numpad: Pos, target: Pos, number_of_robots_on_keypads) -> set[str]:
+    seq_on_keypad1 = shortest_sequence_set_for_robot_on_keypad1(robot_on_numpad, target)
+    dp.print(f'{len(seq_on_keypad1)=} {seq_on_keypad1=}')
+
+    seq_on_keypad = for_robots(number_of_robots_on_keypads, seq_on_keypad1)
+    return seq_on_keypad
 
 
-def calculate_sequence_for_you(state: State, target: Pos) -> str:
-    dp.print(f'    {state=}')
-    seq_for_you = calculate_sequence(state.robot_at_keypad2, target, KEYPAD)
-    state.robot_at_keypad2 = target
-    dp.print(f'    key={get_label(KEYPAD, target)} {seq_for_you=} {state=}')
-    return seq_for_you
+@memoize
+def for_robots(i, seq):
+    if i == 0:
+        return seq
+    next_seq = sequence_set_for_sequence_on_keypad(seq)
+    dp.print(f'{len(next_seq)=} {next_seq=}')
+    return for_robots(i - 1, next_seq)
 
 
-def push_button_numpad(state: State, button: str):
-    target_for_robot_on_numpad = NUMPAD[button]
-    seq_on_keypad1 = calculate_sequence_for_robot_on_keypad1(state, target_for_robot_on_numpad)
-    for c in seq_on_keypad1:
-        target_for_robot_on_keypad1 = KEYPAD[c]
-        seq_on_keypad2 = calculate_sequence_for_robot_on_keypad2(state, target_for_robot_on_keypad1)
-        for d in seq_on_keypad2:
-            target_for_robot_on_keypad2 = KEYPAD[d]
-            seq_for_you = calculate_sequence_for_you(state, target_for_robot_on_keypad2)
-            state.sequence_for_you += seq_for_you
+def filter_shortest(seq_set: set[str]) -> set[str]:
+    result = set()
+    min_len = min(len(seq) for seq in seq_set)
+    return set([s for s in seq_set if len(s) == min_len])
 
 
-def puzzle1(lines: list[str]):
+@memoize
+def sequence_set_for_sequence_on_keypad(sequence_set: set[str]):
+    seq_on_keypad = set()
+    for s in sequence_set:
+        seq = {''}
+        target_robot = KEYPAD['A']  # always start from A
+        for c in s:
+            target_for_robot_on_keypad = KEYPAD[c]
+            seq = concat_sequence(seq,
+                                  shortest_sequence_set_for_robot_on_keypad2(target_robot, target_for_robot_on_keypad))
+            target_robot = target_for_robot_on_keypad
+        seq_on_keypad |= seq
+    return filter_shortest(seq_on_keypad)
+
+
+def concat_sequence(heads: set[str], tails: set[str]) -> set[str]:
+    if not heads:
+        return tails
+    if not tails:
+        return heads
+    result = set()
+    for h in heads:
+        for t in tails:
+            result.add(h + t)
+    return result
+
+
+def solve(lines: list[str], number_of_robots_on_keypads: int):
     score = 0
     for l in lines:
-        state = State()
+        seq = ''
+        robot = NUMPAD['A']
         for c in l.strip():
-            push_button_numpad(state, c)
-        dp.print(state.sequence_for_you)
+            seq += shortest_sequence_set_for_you(robot, NUMPAD[c], number_of_robots_on_keypads).pop()
+            robot = NUMPAD[c]
+        dp.print(seq)
 
         num = int(re.match(r'0*(\d+).*', l.strip()).group(1))
-        score += num * len(state.sequence_for_you)
-        print(num, len(state.sequence_for_you), num * len(state.sequence_for_you))
+        score += num * len(seq)
+        print(num, len(seq), num * len(seq))
 
     return score
 
 
+def puzzle1(lines: list[str]):
+    return solve(lines, 2)
+
+
 def puzzle2(lines: list[str]):
-    return 0
+    return solve(lines, 5)
 
 
 def main():

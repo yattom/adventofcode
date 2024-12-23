@@ -1,4 +1,5 @@
 from puzzle import *
+import pytest
 
 def test_calculate_sequence_for_robot_on_keypad1():
     state = State()
@@ -18,16 +19,19 @@ def test_calculate_sequence_for_robot_on_keypad2():
     assert actual == 'v<<A'
     assert state.robot_at_keypad1 == KEYPAD['<']
 
-def test_calculate_sequence_for_robot_on_keypad2_length_differ():
-    state = State()
-    state.robot_at_numpad = NUMPAD['3']
-    s1 = ''
-    for c in '<<^A':
-        s1 += calculate_sequence_for_robot_on_keypad2(state, KEYPAD[c])
 
-    s2 = ''
-    for c in '<^<A':
-        s2 += calculate_sequence_for_robot_on_keypad2(state, KEYPAD[c])
+@pytest.mark.parametrize("start, target, expected", [
+    (NUMPAD['A'], NUMPAD['0'], {'<A'}),
+    (NUMPAD['1'], NUMPAD['3'], {'>>A'}),
+    (NUMPAD['2'], NUMPAD['5'], {'^A'}),
+    (NUMPAD['A'], NUMPAD['5'], {'^^<A', '<^^A'}),
+    (NUMPAD['A'], NUMPAD['4'], {'^^<<A'}),
+])
+def test_shortest_sequence_set(start, target, expected):
+    actual = get_sequence_set(start=start, target=target, target_pad=NUMPAD)
+    assert actual == expected
+    
 
-    assert s1 == s2
-
+def test_shortest_sequence_set_for_you():
+    actual = shortest_sequence_set_for_you(NUMPAD['A'], NUMPAD['2'])
+    assert '<vA<AA>>^AvA<^A>AvA^A' in actual
