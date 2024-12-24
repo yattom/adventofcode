@@ -122,17 +122,17 @@ class Gate:
     out: Label
 
 
-def get_gate_for_ins(gates: list[Gate], label: str) -> list[Gate]:
+def get_gate_for_ins(gates: dict[Label, Gate], label: str) -> list[Gate]:
     result = []
-    for gate in gates:
+    for gate in gates.values():
         if label in gate.ins:
             result.append(gate)
     return result
 
 
-def get_gate_for_out(gates: list[Gate], label: str) -> Gate:
+def get_gate_for_out(gates: dict[Label, Gate], label: str) -> Gate:
     result = []
-    for gate in gates:
+    for gate in gates.values():
         if label == gate.out:
             return gate
 
@@ -176,14 +176,14 @@ def format_bits(bits):
     return result.strip()
 
 
-def resolve_output(gates: list[Gate], input_values: dict[Label, int]):
+def resolve_output(gates: dict[Label, Gate], input_values: dict[Label, int]):
     no_value = -1
     values = input_values.copy()
     changed = True
     while changed:
         # print(f'{values=}')
         changed = False
-        for gate in gates:
+        for gate in gates.values():
             if gate.out in values:
                 continue
             in1 = values.get(gate.ins[0], no_value)
@@ -210,10 +210,10 @@ def read_input(lines):
             break
         label, value = (v.strip() for v in l.split(':'))
         input_values[label] = int(value)
-    gates = []
+    gates: dict[Label, Gate] = {}
     for l in lines[i + 1:]:
         in1, logic, in2, _, out = l.strip().split(' ')
-        gates.append(Gate(logic, [in1, in2], out))
+        gates[out] = Gate(logic, [in1, in2], out)
     return gates, input_values
 
 
@@ -258,7 +258,7 @@ def get_different_z_labels(actual_z_bits, expected_z_bits):
     return result
 
 
-def find_suspicious_gates(gates: list[Gate], different_z_labels: list[str], suspicious_gates: set[str]) -> set[
+def find_suspicious_gates(gates: dict[Label, Gate], different_z_labels: list[str], suspicious_gates: set[str]) -> set[
     Label]:
     found: set[Label] = set()
     gates_to_check: set[str] = set(different_z_labels)
@@ -282,7 +282,7 @@ def find_suspicious_gates(gates: list[Gate], different_z_labels: list[str], susp
 
 def puzzle2(lines: list[str]):
     puzzle = read_input(lines)
-    gates: list[Gate] = puzzle[0]
+    gates: dict[Label, Gate] = puzzle[0]
     input_values: dict[Label, int] = puzzle[1]
 
     # calculate expected
@@ -323,7 +323,8 @@ def puzzle2(lines: list[str]):
     return ','.join(labels)
 
 
-def try_swapping(gates: list[Gate], input_values: dict[Label, int], suspicious_gates: set[Label]) -> list[Label] | None:
+def try_swapping(gates: dict[Label, Gate], input_values: dict[Label, int], suspicious_gates: set[Label]) -> list[Label] | None:
+    gate_labels = list(gates.keys())
     print(f'try swapping {suspicious_gates=}')
     SWAP_PAIRS = 4
     x_labels = sorted([l for l in input_values if l.startswith('x')], reverse=True)
@@ -339,7 +340,8 @@ def try_swapping(gates: list[Gate], input_values: dict[Label, int], suspicious_g
             # no swapping same gate
             continue
         for i in range(SWAP_PAIRS):
-            gates[c[i * 2]].out, gates[c[i * 2 + 1]].out = gates[c[i * 2 + 1]].out, gates[c[i * 2]].out
+            label1, label2 = gate_labels[c[i * 2]], gate_labels[c[i * 2 + 1]]
+            gates[label1].out, gates[label2].out = gates[label2].out, gates[label1].out
         resolved = resolve_output(gates, input_values)
         actual_z_bits = calc_bits(resolved, z_labels)
 
@@ -350,10 +352,11 @@ def try_swapping(gates: list[Gate], input_values: dict[Label, int], suspicious_g
             print(f'{expected_z_bits=}')
         # swap back
         for i in range(SWAP_PAIRS):
-            gates[c[i * 2]].out, gates[c[i * 2 + 1]].out = gates[c[i * 2 + 1]].out, gates[c[i * 2]].out
+            label1, label2 = gate_labels[c[i * 2]], gate_labels[c[i * 2 + 1]]
+            gates[label1].out, gates[label2].out = gates[label2].out, gates[label1].out
 
         if actual_z_bits == expected_z_bits:
-            return [gates[i].out for i in c]
+            return [gates[gates.keys()[i]].out for i in c]
 
     return None
 
