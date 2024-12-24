@@ -28,7 +28,6 @@ class DebugPrinter:
         return (time.time_ns() - self.start_ns) / (1000 * 1000 * 1000)
 
 
-GAP = 'X'
 DIRECTION = {
     (0, -1): '^',
     (0, 1): 'v',
