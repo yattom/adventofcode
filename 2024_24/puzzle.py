@@ -415,22 +415,6 @@ def puzzle2(lines: list[str]):
     print(len(working.suspicious_gates))
     return 0
 
-    # calculate expected
-    expected_z_value = calc_value(puzzle.input_values, puzzle.x_labels) + calc_value(puzzle.input_values,
-                                                                                     puzzle.y_labels)
-    expected_z_bits = bin(expected_z_value)[2:]
-
-    while True:
-        if len(suspicious_gates) >= 8:
-            answer_labels = try_swapping(puzzle.gates, puzzle.input_values, suspicious_gates)
-            if answer_labels:
-                # nailed it!
-                break
-
-        x = x << 1 | ~(x & 1)
-        y = y >> 1 | (2 ** 44)
-
-    print(f'{answer_labels=} {puzzle.z_labels=} {actual_z_bits=} {expected_z_value=}')
     for i in range(0, len(answer_labels), 2):
         if answer_labels[i] > answer_labels[i + 1]:
             answer_labels[i], answer_labels[i + 1] = answer_labels[i + 1], answer_labels[i]
