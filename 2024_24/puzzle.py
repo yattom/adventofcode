@@ -127,8 +127,8 @@ gate_ins_map: dict[Label, list[Gate]] = {}
 
 
 def get_gate_for_ins(gates: dict[Label, Gate], label: str) -> list[Gate]:
-    if label in gate_ins_map:
-        return gate_ins_map[label][:]
+    # if label in gate_ins_map:
+    #     return gate_ins_map[label][:]
     result = []
     for gate in gates.values():
         if label in gate.ins:
@@ -211,7 +211,6 @@ def resolve_output(gates: dict[Label, Gate], input_values: dict[Label, int]):
                         values[gate.out] = in1 ^ in2
                     case _:
                         raise RuntimeError(f'Unknown logic: {gate.logic}')
-
                 new_label_to_resolve.append(gate.out)
                 changed = True
         if not changed:
@@ -265,58 +264,59 @@ class Puzzle:
         return puzzle
 
 
-Solution: TypeAlias = tuple[tuple[Label, Label]]
+Solution: TypeAlias = tuple[tuple[Label, Label], ...]
 
 
 @dataclass
 class Working:
     suspicious_gates: dict[Label, int] = field(default_factory=dict)
     failed_gates: set[Solution] = field(default_factory=set)
+    solution: Solution = None
     solved: bool = False
 
 
-# def all_combination_of_pairs(number_of_pairs: int, min_and_max: tuple[int, int]):
-#     value = [i for i in range(min_and_max[0], number_of_pairs)]
-#     print(f'{value=}')
-#     while True:
-#         yield value[:]
-#         for i in range(len(value) - 1, -1, -1):
-#             if value[i] + 1 > min_and_max[1]:
-#                 if i == 0:
-#                     return
-#                 value[i] = min_and_max[0]
-#             else:
-#                 value[i] += 1
-#                 break
-def all_combination_of_pairs(number_of_pairs: int, min_and_max: tuple[int, int]):
-    # Step 1: 数字のリストを生成
-    numbers = list(range(min_and_max[0], min_and_max[1] + 1))
-    total_numbers = len(numbers)
-
-    # ガード: 入力データがペアを作るのに十分でない場合は終了
-    if number_of_pairs * 2 > total_numbers:
-        return
-
-    # Step 2: 各ペアのインデックスリストを生成
-    indices = list(range(2 * number_of_pairs))  # インデックスの最初のセット
+def combinations(number_to_choose: int, number_of_all_items: int) -> list[list[int]]:
+    combination = [i for i in range(0, number_to_choose)]
     while True:
-        # 現在のインデックスを使ってペアを生成
-        result = []
-        for i in range(0, len(indices), 2):
-            result.append((numbers[indices[i]], numbers[indices[i + 1]]))
+        yield combination[:]
 
-        yield result
-
-        # 次のインデックスセットを生成
-        for i in range(len(indices) - 1, -1, -1):
-            if indices[i] != total_numbers - len(indices) + i:
+        # increment by 1
+        for i in range(len(combination) - 1, -1, -1):
+            combination[i] += 1
+            for j in range(i + 1, len(combination)):
+                combination[j] = combination[i] + (j - i)
+            if combination[i] < number_of_all_items - (len(combination) - i - 1):
+                # end increment at this i
                 break
         else:
-            return  # インデックスが限界に達した場合は終了
+            # combination[0] is maxed out so no more combination
+            return
 
-        indices[i] += 1
-        for j in range(i + 1, len(indices)):
-            indices[j] = indices[j - 1] + 1
+
+def permutations(items: list[int]) -> list[list[int]]:
+    result = [[]]
+    for item in items:
+        new_result = []
+        for r in result:
+            for i in range(len(r) + 1):
+                new_result.append(r[:i] + [item] + r[i:])
+        result = new_result
+    return result
+
+
+def all_combination_of_pairs(number_of_pairs: int, number_of_all_items: int) -> list[list[tuple[int, int]]]:
+    visited = set()
+    for comb in combinations(number_of_pairs * 2, number_of_all_items):
+        for perm in permutations(comb):
+            # make pairs
+            pairs = tuple(sorted([
+                (perm[i], perm[i + 1]) if (perm[i] < perm[i + 1]) else (perm[i + 1], perm[i])
+                for i in range(0, len(perm), 2)]))
+            if pairs in visited:
+                continue
+            visited.add(pairs)
+
+            yield pairs
 
 
 def set_x_y_values(values, x_labels, y_labels, x, y):
@@ -328,20 +328,20 @@ def set_x_y_values(values, x_labels, y_labels, x, y):
         if i >= len(bin_x):
             values[xl] = 0
         else:
-            values[xl] = int(bin_x[-i])
+            values[xl] = int(bin_x[-(i + 1)])
     for yl in y_labels:
         i = int(yl[1:])
         if i >= len(bin_y):
             values[yl] = 0
         else:
-            values[yl] = int(bin_y[-i])
+            values[yl] = int(bin_y[-(i + 1)])
 
 
 def get_different_z_labels(actual_z_bits, expected_z_bits):
     result = []
     for i in range(len(expected_z_bits) - 1, -1, -1):
         if expected_z_bits[i] != actual_z_bits[i]:
-            result.append(f'z{i:02}')
+            result.append(f'z{(len(expected_z_bits) - i - 1):02}')
     return result
 
 
@@ -379,13 +379,85 @@ def generate_testing_values_bit_by_bit_thorough(puzzle: Puzzle, working: Working
                 yield x, y
 
 
-def generate_testing_values_by_random(puzzle: Puzzle, working: Working):
-    min_val = 0
-    max_val = 2 ** len(puzzle.x_labels) - 1
-    for i in range(10000):
-        x = random.randint(min_val, max_val)
-        y = random.randint(min_val, max_val)
-        yield x, y
+def generate_testing_values_by_random(repeat: int):
+    def generator(puzzle: Puzzle, working: Working):
+        min_val = 0
+        max_val = 2 ** len(puzzle.x_labels) - 1
+        for i in range(repeat):
+            x = random.randint(min_val, max_val)
+            y = random.randint(min_val, max_val)
+            yield x, y
+
+    return generator
+
+
+def match(a, b):
+    return a == "*" or a == b
+
+
+def gather_suspicious_gates_by_detecting_adder(puzzle, working):
+    correct_gates = set()
+
+    def find_matching_gate(in1, in2, logic, out) -> Gate | None:
+        for g in puzzle.gates.values():
+            if match(out, g.out) and g.logic == logic and ((match(in1, g.ins[0]) and (match(in2, g.ins[1]))) or (
+                    match(in2, g.ins[0]) and (match(in1, g.ins[1])))):
+                if g.out in correct_gates:
+                    print(f'Gate {in1} {logic} {in1} -> {out} is already found')
+                correct_gates.add(g.out)
+                return g
+        print(f'Gate {in1} {logic} {in2} -> {out} is not found')
+        return None
+
+    carry = {}
+    for z_label in sorted(puzzle.z_labels):
+        z_num = int(z_label[1:])
+        x_label, y_label = f'x{z_num:02}', f'y{z_num:02}'
+        print(f'looking for {x_label} {y_label} {z_label}')
+
+        if z_num == 0:
+            # x XOR y -> g1
+            xor_gate1 = find_matching_gate(x_label, y_label, 'XOR', "*")
+            if xor_gate1 is None:
+                continue
+
+            # x AND y -> g2 (carry for next bit)
+            and_gate2 = find_matching_gate(x_label, y_label, 'AND', "*")
+            if and_gate2 is None:
+                continue
+            carry[z_num] = and_gate2.out
+
+        else:
+            # x XOR y -> g1
+            xor_gate1 = find_matching_gate(x_label, y_label, 'XOR', "*")
+            if xor_gate1 is None:
+                continue
+
+            # x AND y -> g2
+            and_gate2 = find_matching_gate(x_label, y_label, 'AND', "*")
+            if and_gate2 is None:
+                continue
+
+            print(f'{carry=}')
+            carry_from_prev = carry.get(z_num - 1, '*')
+            # g1 XOR carry -> z
+            xor_gate4 = find_matching_gate(xor_gate1.out, carry_from_prev, 'XOR', z_label)
+            if xor_gate4 is None:
+                continue
+
+            # g1 AND carry -> g5
+            and_gate5 = find_matching_gate(xor_gate1.out, carry_from_prev, 'AND', "*")
+            if and_gate5 is None:
+                continue
+
+            # g2 OR carry -> g3 (carry for next bit)
+            or_gate3 = find_matching_gate(and_gate2.out, and_gate5.out, 'OR', "*")
+            if or_gate3 is None:
+                continue
+            carry[z_num] = or_gate3.out
+
+    all_gates = set(puzzle.gates.keys())
+    working.suspicious_gates = {k: 1 for k in all_gates - correct_gates}
 
 
 def gather_suspicious_gates(puzzle, working, strategy):
@@ -405,64 +477,93 @@ def gather_suspicious_gates(puzzle, working, strategy):
         find_suspicious_gates(puzzle, different_z_labels, working)
 
 
+def gather_suspicious_gates_by_hand(puzzle, working):
+    working.suspicious_gates = {k: 1 for k in ['z05', 'bpf', 'z11', 'hcc', 'hqc', 'qcw', 'fdw', 'z35']}
+
+
 def puzzle2(lines: list[str]):
     puzzle = Puzzle.build_puzzle(lines)
 
     working = Working()
-    gather_suspicious_gates(puzzle, working, generate_testing_values_by_random)
+    # gather_suspicious_gates(puzzle, working, generate_testing_values_by_random(10000))
+    # gather_suspicious_gates(puzzle, working, generate_testing_values_bit_by_bit_thorough)
+    # gather_suspicious_gates_by_detecting_adder(puzzle, working)
+    gather_suspicious_gates_by_hand(puzzle, working)
     print(f'{sorted(working.suspicious_gates.items(), key=lambda x: -x[1])=}')
 
     print(len(working.suspicious_gates))
-    return 0
+    candidates_in_order: list[Label] = [e[0] for e in sorted(working.suspicious_gates.items(), key=lambda x: -x[1])]
+    search_solution(candidates_in_order, puzzle, working)
 
-    for i in range(0, len(answer_labels), 2):
-        if answer_labels[i] > answer_labels[i + 1]:
-            answer_labels[i], answer_labels[i + 1] = answer_labels[i + 1], answer_labels[i]
+    print(f'{working.solution=}')
+    if working.solution is None:
+        return 0
+    sorted_answer = []
+    for (p1, p2) in working.solution:
+        sorted_answer.append(p1)
+        sorted_answer.append(p2)
+    sorted_answer.sort()
+    print(sorted_answer)
 
-    print(','.join(answer_labels))
-    return ','.join(answer_labels)
+    return ','.join(sorted_answer)
 
 
-def try_swapping(gates: dict[Label, Gate], input_values: dict[Label, int], suspicious_gates: set[Label]) -> list[
-                                                                                                                Label] | None:
-    gate_labels = list(gates.keys())
-    print(f'try swapping {suspicious_gates=}')
+def search_solution(candidates_in_order: list[Label], puzzle: Puzzle, working: Working):
+    tried = set()
     SWAP_PAIRS = 4
-    x_labels = sorted([l for l in input_values if l.startswith('x')], reverse=True)
-    y_labels = sorted([l for l in input_values if l.startswith('y')], reverse=True)
-    resolved = resolve_output(gates, input_values)
-    z_labels = sorted([l for l in resolved if l.startswith('z')], reverse=True)
-    expected_z_value = calc_value(input_values, x_labels) + calc_value(input_values, y_labels)
-    expected_z_bits = bin(expected_z_value)[2:]
+    for candidates_size in range(SWAP_PAIRS * 2, len(candidates_in_order) + 1):
+        subset = candidates_in_order[:candidates_size]
+        for pair_idxs in all_combination_of_pairs(SWAP_PAIRS, len(subset)):
+            if pair_idxs in tried:
+                continue
+            tried.add(pair_idxs)
+            pairs: tuple[tuple[Label, Label], ...] = tuple([(subset[p1], subset[p2]) for p1, p2 in pair_idxs])
+            if is_valid_pairs(puzzle, working, pairs):
+                working.solution = pairs
+                working.solved = True
+                return
 
-    # TODO in process of modifying
-    for c in all_combination_of_pairs(SWAP_PAIRS * 2, (0, len(suspicious_gates) - 1)):
-        print(c)
-        if len(c) != len(set(c)):
-            # no swapping same gate
-            continue
-        for i in range(SWAP_PAIRS):
-            label1, label2 = gate_labels[c[i * 2]], gate_labels[c[i * 2 + 1]]
-            gates[label1].out, gates[label2].out = gates[label2].out, gates[label1].out
-        resolved = resolve_output(gates, input_values)
-        actual_z_bits = calc_bits(resolved, z_labels)
+            if dp.at_interval():
+                print(f'{candidates_size=} {len(tried)=} {pairs=}')
 
-        if dp.at_interval():
-            print(f'{c=}')
-            print(f'{suspicious_gates=}')
-            print(f'  {actual_z_bits=}')
-            print(f'{expected_z_bits=}')
-            import sys
-            sys.exit(0)
+
+def is_valid_pairs(puzzle: Puzzle, working: Working, pairs: tuple[tuple[Label, Label], ...]):
+    for pair in pairs:
+        puzzle.gates[pair[0]].out, puzzle.gates[pair[1]].out = puzzle.gates[pair[1]].out, puzzle.gates[pair[0]].out
+
+    print(f'{puzzle.x_labels=}')
+    print(f'{puzzle.y_labels=}')
+    print(f'{puzzle.z_labels=}')
+    def generator(puzzle: Puzzle, working: Working):
+        min_val = 0
+        max_val = 2 ** len(puzzle.x_labels) - 1
+        for i in range(10):
+            x = random.randint(min_val, max_val)
+            y = random.randint(min_val, max_val)
+            yield x, y
+    try:
+        for i, (x, y) in enumerate(generator(puzzle, working)):
+            z = x + y
+
+            values = puzzle.input_values.copy()
+            set_x_y_values(values, puzzle.x_labels, puzzle.y_labels, x, y)
+            print(f'{puzzle=} {x,y=}')
+            resolved = resolve_output(puzzle.gates, values)
+            print(f'{puzzle=} {x,y=} {resolved=}')
+            actual_z_bits = calc_bits(resolved, puzzle.z_labels)
+            expected_z_bits = ('0' * 64 + bin(z)[2:])[-len(actual_z_bits):]
+            if actual_z_bits != expected_z_bits:
+                print(f'{i=}')
+                print(f'{expected_z_bits=}')
+                print(f'  {actual_z_bits=}')
+                return False
+    finally:
         # swap back
-        for i in range(SWAP_PAIRS):
-            label1, label2 = gate_labels[c[i * 2]], gate_labels[c[i * 2 + 1]]
-            gates[label1].out, gates[label2].out = gates[label2].out, gates[label1].out
+        for pair in pairs:
+            puzzle.gates[pair[0]].out, puzzle.gates[pair[1]].out = puzzle.gates[pair[1]].out, puzzle.gates[pair[0]].out
 
-        if actual_z_bits == expected_z_bits:
-            return [gates[gates.keys()[i]].out for i in c]
 
-    return None
+    return True
 
 
 def main():
