@@ -1,24 +1,6 @@
 from puzzle import *
 import pytest
 
-def test_calculate_sequence_for_robot_on_keypad1():
-    state = State()
-    actual = calculate_sequence_for_robot_on_keypad1(state, NUMPAD['0'])
-    assert actual == '<A'
-    assert state.robot_at_numpad == NUMPAD['0']
-
-
-def test_shortest_sequence():
-    actual = shortest_sequence(start=NUMPAD['A'], target=NUMPAD['0'], target_pad=NUMPAD)
-    assert actual == '<A'
-
-def test_calculate_sequence_for_robot_on_keypad2():
-    state = State()
-    state.robot_at_numpad = Pos(1, 0)
-    actual = calculate_sequence_for_robot_on_keypad2(state, KEYPAD['<'])
-    assert actual == 'v<<A'
-    assert state.robot_at_keypad1 == KEYPAD['<']
-
 
 @pytest.mark.parametrize("start, target, expected", [
     (NUMPAD['A'], NUMPAD['0'], {'<A'}),
@@ -30,8 +12,24 @@ def test_calculate_sequence_for_robot_on_keypad2():
 def test_shortest_sequence_set(start, target, expected):
     actual = get_sequence_set(start=start, target=target, target_pad=NUMPAD)
     assert actual == expected
-    
+
 
 def test_shortest_sequence_set_for_you():
-    actual = shortest_sequence_set_for_you(NUMPAD['A'], NUMPAD['2'])
+    actual = shortest_sequence_set_for_you(NUMPAD['A'], NUMPAD['2'], 2)
     assert '<vA<AA>>^AvA<^A>AvA^A' in actual
+
+
+def test_calc_smallest_number_of_sequence_for_keypad():
+    nth_0 = {(start, target): 1 for start in KEYPAD if start != GAP for target in KEYPAD if target != GAP}
+    nth_1 = calc_smallest_number_of_sequence_for_keypad(nth_0)
+    assert nth_1[('A', '<')] == 4
+    assert nth_1[('A', '^')] == 2
+    assert nth_1[('A', 'v')] == 3
+    assert nth_1[('A', '>')] == 2
+    assert nth_1[('A', 'A')] == 1
+    nth_2 = calc_smallest_number_of_sequence_for_keypad(nth_1)
+    assert nth_2[('A', '<')] == 10
+    assert nth_2[('A', '^')] == 8
+    assert nth_2[('A', 'v')] == 9
+    assert nth_2[('A', '>')] == 6
+    assert nth_2[('A', 'A')] == 1

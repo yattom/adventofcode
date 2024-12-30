@@ -2,6 +2,7 @@ import re
 import time
 from copy import copy
 from dataclasses import dataclass
+from functools import reduce
 from typing import TypeAlias
 
 
@@ -203,13 +204,78 @@ def solve(lines: list[str], number_of_robots_on_keypads: int):
     return score
 
 
+Key: TypeAlias = str
+def calc_smallest_number_of_sequence_for_keypad(prev: dict[tuple[Key, Key], int]):
+    smallest_number_of_sequence_for_keypad = {}
+    for start in KEYPAD:
+        for target in KEYPAD:
+            if start == GAP or target == GAP:
+                continue
+            seq_set = get_sequence_set(KEYPAD[start], KEYPAD[target], KEYPAD)
+            length_set = set()
+            for seq in seq_set:
+                robot = 'A'
+                length = 0
+                for c in seq:
+                    length += prev[robot, c]
+                    robot = c
+                length_set.add(length)
+            min_len = min(length_set)
+            smallest_number_of_sequence_for_keypad[(start, target)] = min_len
+    return smallest_number_of_sequence_for_keypad
+
+
+def calc_smallest_number_of_sequence_for_numpad(length_for_keypad: dict[tuple[Key, Key], int]):
+    smallest_number_of_sequence_for_numpad = {}
+    for start in NUMPAD:
+        for target in NUMPAD:
+            if start == GAP or target == GAP:
+                continue
+            seq_set = get_sequence_set(NUMPAD[start], NUMPAD[target], NUMPAD)
+            length_set = set()
+            for seq in seq_set:
+                robot = 'A'
+                length = 0
+                for c in seq:
+                    length += length_for_keypad[robot, c]
+                    robot = c
+                length_set.add(length)
+            min_len = min(length_set)
+            smallest_number_of_sequence_for_numpad[(start, target)] = min_len
+    return smallest_number_of_sequence_for_numpad
+
+def solve2(lines: list[str], number_of_robots_on_keypads: int):
+    # nth == 0 means you push the keypad, so number of sequence is always 1
+    smallest_number_of_sequence_for_keypad = {(start, target): 1 for start in KEYPAD if start != GAP for target in KEYPAD if target != GAP}
+
+    for nth in range(1, number_of_robots_on_keypads + 1):
+        smallest_number_of_sequence_for_keypad = calc_smallest_number_of_sequence_for_keypad(smallest_number_of_sequence_for_keypad)
+
+    smallest_number_of_sequence_for_numpad = calc_smallest_number_of_sequence_for_numpad(
+        smallest_number_of_sequence_for_keypad)
+
+    score = 0
+    for l in lines:
+        length = 0
+        robot = 'A'
+        for target in l.strip():
+            length += smallest_number_of_sequence_for_numpad[(robot, target)]
+            robot = target
+
+        num = int(re.match(r'0*(\d+).*', l.strip()).group(1))
+        score += num * length
+        print(f'{num}, {length} {num * length}')
+    return score
+
+
 def puzzle1(lines: list[str]):
-    return solve(lines, 2)
+    solve(lines, 2)
+    return solve2(lines, 2)
 
 
 def puzzle2(lines: list[str]):
-    return solve(lines, 5)
-
+    return solve2(lines, 25)
+    pass
 
 def main():
     import sys
