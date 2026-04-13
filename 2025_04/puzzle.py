@@ -111,12 +111,39 @@ def memoize(func):
 dp = DebugPrinter(enabled=False)
 
 
+def get_removable_rolls(grid: Grid):
+    ADJ = [(-1, -1), (0, -1), (1, -1),
+           (-1, 0),           (1, 0),
+           (-1, 1),  (0, 1),  (1, 1),]
+    removable = []
+    for p, c in grid:
+        x, y = p.x, p.y
+        if c == '@':
+            rolls_count = sum(
+                (1 if grid[Pos(x + dx, y + dy)] =='@' else 0
+                   for (dx, dy) in ADJ))
+            if rolls_count < 4:
+                removable.append(Pos(x, y))
+    return removable
+
+
 def puzzle1(lines: list[str]):
-    return 0
+    grid = Grid(lines)
+    accessible_count = len(get_removable_rolls(grid))
+    return accessible_count
 
 
 def puzzle2(lines: list[str]):
-    return 0
+    grid = Grid(lines)
+    removed_count = 0
+    while True:
+        removable_rolls = get_removable_rolls(grid)
+        if not removable_rolls:
+            break
+        for p in removable_rolls:
+            grid[p] = ' '
+        removed_count += len(removable_rolls)
+    return removed_count
 
 
 def main():
